@@ -2,14 +2,17 @@
 // fichier et génère automatiquement le code TypeScript pour lire/écrire
 // dans PostgreSQL — on n'écrit jamais de SQL à la main pour les
 // opérations courantes.
+//
+// Depuis Prisma 7 : l'URL de connexion ne vit plus ici, elle est
+// définie dans prisma.config.ts (à la racine du projet).
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ============================================
