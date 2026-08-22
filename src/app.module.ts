@@ -1,10 +1,17 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
+import { PrismaModule } from './prisma/prisma.module';
 
-// Le module racine. Pour l'instant il ne contient que le contrôleur de
-// health check — chaque brique métier (Store, Auth, Products...)
-// viendra s'ajouter ici, une à une, dans le tableau `imports`.
 @Module({
+  imports: [
+    // Charge le fichier .env une seule fois pour toute l'application.
+    // isGlobal: true -> plus besoin de le réimporter ailleurs.
+    ConfigModule.forRoot({ isGlobal: true }),
+
+    // Notre pont vers la base de données (voir prisma.module.ts).
+    PrismaModule,
+  ],
   controllers: [AppController],
 })
 export class AppModule {}
