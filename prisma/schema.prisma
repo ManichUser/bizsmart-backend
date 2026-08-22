@@ -1,0 +1,81 @@
+// Ce fichier décrit la structure de la base de données. Prisma lit ce
+// fichier et génère automatiquement le code TypeScript pour lire/écrire
+// dans PostgreSQL — on n'écrit jamais de SQL à la main pour les
+// opérations courantes.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// 👤 UTILISATEURS
+// ============================================
+
+enum Role {
+  USER  // Client — peut acheter dans plusieurs boutiques (compte global)
+  ADMIN // Commerçant — propriétaire d'UNE boutique
+  SUPER // Administrateur de la plateforme BizSmart (Niveau 1)
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  phone     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Un compte avec role=ADMIN possède exactement une boutique. On ne
+  // promeut jamais un utilisateur en ADMIN "à la main" : c'est la
+  // création d'une boutique (voir StoresModule, prochain bloc) qui fait
+  // cette promotion, plus tard.
+  ownedStore Store?
+
+  @@map("users")
+}
+
+// ============================================
+// 🏪 BOUTIQUES (tenants)
+// ============================================
+
+enum StoreStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model Store {
+  id      String @id @default(uuid())
+  ownerId String @unique
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+
+  name        String
+  // Identifiant technique utilisé dans le sous-domaine :
+  // {slug}.bizsmart.africa — décision validée avec le porteur du projet.
+  slug        String @unique
+  description String?
+  logo        String?
+
+  email   String?
+  phone   String?
+  address String?
+  city    String?
+
+  // Géolocalisation exacte (optionnelle) — pour permettre au client de
+  // localiser la boutique depuis sa position.
+  latitude  Float?
+  longitude Float?
+
+  status StoreStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("stores")
+}
