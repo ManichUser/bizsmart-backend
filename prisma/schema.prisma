@@ -39,9 +39,42 @@ model User {
   // promeut jamais un utilisateur en ADMIN "à la main" : c'est la
   // création d'une boutique (voir StoresModule, prochain bloc) qui fait
   // cette promotion, plus tard.
-  ownedStore Store?
+  ownedStore    Store?
+  refreshTokens RefreshToken[]
 
   @@map("users")
+}
+
+// ============================================
+// 🔑 REFRESH TOKENS (rotation)
+// ============================================
+
+model RefreshToken {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // On ne stocke JAMAIS le token en clair (même principe qu'un mot de
+  // passe) : seulement son empreinte SHA-256. Si la base fuite, les
+  // tokens ne sont pas directement réutilisables.
+  tokenHash String @unique
+
+  expiresAt DateTime
+  // Rempli dès que ce token a été utilisé (rotation) ou révoqué
+  // manuellement (déconnexion). Un token avec revokedAt != null ne peut
+  // plus jamais servir.
+  revokedAt DateTime?
+
+  // Pointe vers le token qui l'a remplacé lors de la rotation — forme
+  // une chaîne qui permet de détecter une réutilisation frauduleuse.
+  replacedById String?  @unique
+  replacedBy   RefreshToken?  @relation("TokenChain", fields: [replacedById], references: [id])
+  replaces     RefreshToken?  @relation("TokenChain")
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
 }
 
 // ============================================
