@@ -106,4 +106,15 @@ export class StoresService {
 
     return store;
   }
+
+  /** Utilisé par TenantMiddleware/CurrentStore une fois le slug déjà résolu. */
+  async findById(id: string) {
+    const store = await this.prisma.store.findUnique({ where: { id } });
+
+    if (!store || store.status !== 'ACTIVE') {
+      throw new NotFoundException('Boutique introuvable');
+    }
+
+    return store;
+  }
 }

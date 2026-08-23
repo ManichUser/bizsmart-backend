@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Patch, Post } from '@nestjs/common';
 import { StoresService } from './stores.service';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CurrentStore } from '../auth/decorators/current-store.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('stores')
@@ -28,9 +29,23 @@ export class StoresController {
     return this.storesService.updateMine(user.id, dto);
   }
 
-  // Vitrine publique : n'importe quel visiteur (même pas connecté) doit
-  // pouvoir consulter une boutique par son identifiant d'URL (le futur
-  // sous-domaine). @Public() ouvre la route malgré le guard global.
+  // La VRAIE route de vitrine : le frontend d'une boutique l'appelle au
+  // chargement, sans jamais avoir à connaître son propre slug — c'est
+  // TenantMiddleware qui l'a déjà déduit du sous-domaine et posé sur
+  // `req.store` (voir common/middleware/tenant.middleware.ts).
+  @Public()
+  @Get('current')
+  findCurrent(@CurrentStore() store: { id: string } | null) {
+    if (!store) {
+      throw new NotFoundException(
+        "Aucune boutique associée à ce sous-domaine",
+      );
+    }
+    return this.storesService.findById(store.id);
+  }
+
+  // Conservée pour la prévisualisation depuis le domaine principal
+  // (ex: back-office SUPER) — pas la voie normale d'accès à une boutique.
   @Public()
   @Get('by-slug/:slug')
   findBySlug(@Param('slug') slug: string) {
