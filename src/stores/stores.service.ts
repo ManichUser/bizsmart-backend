@@ -95,4 +95,15 @@ export class StoresService {
       data: dto,
     });
   }
+
+  /** Vitrine publique — consultation d'une boutique par son slug. */
+  async findBySlug(slug: string) {
+    const store = await this.prisma.store.findUnique({ where: { slug } });
+
+    if (!store || store.status !== 'ACTIVE') {
+      throw new NotFoundException('Boutique introuvable');
+    }
+
+    return store;
+  }
 }
