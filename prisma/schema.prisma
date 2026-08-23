@@ -113,5 +113,33 @@ model Store {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  categories Category[]
+
   @@map("stores")
+}
+
+// ============================================
+// 🗂️ CATÉGORIES
+// ============================================
+
+model Category {
+  id      String @id @default(uuid())
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  name        String
+  slug        String
+  description String?
+  order       Int     @default(0)
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Unicité PAR boutique : deux boutiques différentes peuvent chacune
+  // avoir une catégorie "Gâteaux" sans se marcher dessus.
+  @@unique([storeId, slug])
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("categories")
 }

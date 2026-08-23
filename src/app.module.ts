@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { StoresModule } from './stores/stores.module';
 import { AuthModule } from './auth/auth.module';
+import { CategoriesModule } from './categories/categories.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 
 @Module({
@@ -26,6 +27,9 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
 
     // Gestion des boutiques (tenants).
     StoresModule,
+
+    // Catalogue — première brique tenant-aware dès la conception.
+    CategoriesModule,
   ],
   controllers: [AppController],
   providers: [
