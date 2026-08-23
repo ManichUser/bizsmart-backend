@@ -1,0 +1,149 @@
+### BizSmart — Tests d'isolation multi-tenant (Categories)
+### Scénario : DEUX boutiques différentes, DEUX commerçants différents.
+### Le but n'est pas "est-ce que ça marche" mais "est-ce qu'elles restent
+### complètement étanches l'une de l'autre".
+###
+### Nécessite l'extension "REST Client" (VSCode) ou un IDE JetBrains.
+### Lance les requêtes DANS L'ORDRE (1 à 14).
+
+@baseUrl = http://lvh.me:3001
+
+### ============================================
+### PRÉPARATION — deux commerçants, deux boutiques
+### ============================================
+
+### 1. Inscription commerçante A
+# @name registerA
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Alice Commerçante",
+  "email": "alice@example.com",
+  "phone": "+237600000010",
+  "password": "MotDePasse123!"
+}
+
+### 2. Connexion A
+# @name loginA
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "alice@example.com",
+  "password": "MotDePasse123!"
+}
+
+### 3. Création de la boutique A
+### Nom choisi pour que le slug généré soit prévisible :
+### "Patisserie Test A" -> "patisserie-test-a"
+# @name createStoreA
+POST {{baseUrl}}/stores
+Authorization: Bearer {{loginA.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Patisserie Test A"
+}
+
+### 4. Inscription commerçant B
+# @name registerB
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Bruno Commerçant",
+  "email": "bruno@example.com",
+  "phone": "+237600000011",
+  "password": "MotDePasse123!"
+}
+
+### 5. Connexion B
+# @name loginB
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "bruno@example.com",
+  "password": "MotDePasse123!"
+}
+
+### 6. Création de la boutique B
+### "Boulangerie Test B" -> slug "boulangerie-test-b"
+# @name createStoreB
+POST {{baseUrl}}/stores
+Authorization: Bearer {{loginB.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Boulangerie Test B"
+}
+
+### ============================================
+### CRÉATION — chacun crée une catégorie DU MÊME NOM
+### (doit marcher pour les deux : l'unicité est par boutique, pas globale)
+### ============================================
+
+### 7. A crée sa catégorie "Gâteaux"
+# @name createCategoryA
+POST {{baseUrl}}/categories
+Authorization: Bearer {{loginA.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Gâteaux"
+}
+
+### 8. B crée AUSSI une catégorie "Gâteaux" — doit réussir (201), pas de
+### conflit, même nom mais boutique différente.
+# @name createCategoryB
+POST {{baseUrl}}/categories
+Authorization: Bearer {{loginB.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Gâteaux"
+}
+
+### ============================================
+### LECTURE ADMIN — chacun ne doit voir QUE ses propres catégories
+### ============================================
+
+### 9. Liste de A — doit contenir UNIQUEMENT sa catégorie (1 élément)
+GET {{baseUrl}}/categories/mine
+Authorization: Bearer {{loginA.response.body.accessToken}}
+
+### 10. Liste de B — doit contenir UNIQUEMENT sa catégorie (1 élément)
+GET {{baseUrl}}/categories/mine
+Authorization: Bearer {{loginB.response.body.accessToken}}
+
+### ============================================
+### TEST D'INTRUSION (IDOR) — B essaie d'agir sur la catégorie de A
+### en devinant/récupérant son ID. Doit échouer avec 404 (PAS 403 —
+### on ne révèle même pas que la ressource existe ailleurs).
+### ============================================
+
+### 11. B tente de MODIFIER la catégorie de A -> doit renvoyer 404
+PATCH {{baseUrl}}/categories/{{createCategoryA.response.body.id}}
+Authorization: Bearer {{loginB.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Piraté"
+}
+
+### 12. B tente de SUPPRIMER la catégorie de A -> doit renvoyer 404
+DELETE {{baseUrl}}/categories/{{createCategoryA.response.body.id}}
+Authorization: Bearer {{loginB.response.body.accessToken}}
+
+### ============================================
+### VITRINE PUBLIQUE — via le VRAI sous-domaine (pas de token du tout)
+### lvh.me pointe vers 127.0.0.1, donc ces URLs fonctionnent telles
+### quelles, sans aucune configuration réseau.
+### ============================================
+
+### 13. Vitrine de la boutique A — doit renvoyer UNIQUEMENT "Gâteaux" de A
+GET http://patisserie-test-a.lvh.me:3001/categories
+
+### 14. Vitrine de la boutique B — doit renvoyer UNIQUEMENT "Gâteaux" de B
+GET http://boulangerie-test-b.lvh.me:3001/categories
