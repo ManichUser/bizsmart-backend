@@ -1,0 +1,84 @@
+### BizSmart — Tests manuels du module Auth
+### Nécessite l'extension "REST Client" (VSCode) — ou natif si tu es sur
+### une IDE JetBrains (WebStorm, IntelliJ...). Clique sur "Send Request"
+### au-dessus de chaque bloc, dans l'ordre.
+
+@baseUrl = http://localhost:3001
+
+### 1. Inscription — crée un compte (role USER par défaut)
+# @name register
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Marie Dupont",
+  "email": "marie@example.com",
+  "phone": "+237600000001",
+  "password": "MotDePasse123!"
+}
+
+### 2. Connexion — récupère un nouveau access token + refresh token
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "marie@example.com",
+  "password": "MotDePasse123!"
+}
+
+### 3. Rafraîchissement — utilise le refreshToken de la connexion (#2)
+### Doit renvoyer un NOUVEAU accessToken ET un NOUVEAU refreshToken.
+# @name refresh
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{login.response.body.refreshToken}}"
+}
+
+### 4. TEST DE SÉCURITÉ — rejouer l'ANCIEN refresh token (celui de #2,
+### déjà utilisé en #3). Il a été invalidé par la rotation : ceci doit
+### échouer avec 401 "Activité suspecte détectée", ET révoquer TOUS les
+### refresh tokens de l'utilisateur (y compris celui obtenu en #3).
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{login.response.body.refreshToken}}"
+}
+
+### 5. Vérification de #4 — le refresh token obtenu en #3 devrait
+### maintenant, LUI AUSSI, être rejeté (toute la famille a été révoquée
+### par précaution). Doit échouer avec 401.
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refresh.response.body.refreshToken}}"
+}
+
+### 6. Reconnexion propre (après le test de sécurité ci-dessus)
+# @name login2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "marie@example.com",
+  "password": "MotDePasse123!"
+}
+
+### 7. Route protégée — logout-all, avec l'access token en en-tête
+### Authorization. Sans un access token valide, ceci doit renvoyer 401
+### (le guard global JwtAuthGuard bloque la route par défaut).
+POST {{baseUrl}}/auth/logout-all
+Authorization: Bearer {{login2.response.body.accessToken}}
+
+### 8. Vérification — le refresh token de la connexion #6 doit
+### maintenant être rejeté (logout-all vient de tout révoquer).
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{login2.response.body.refreshToken}}"
+}
